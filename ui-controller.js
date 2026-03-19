@@ -149,17 +149,24 @@ class UIController {
       this.showStatus('Starting camera...');
 
       // Request camera with saved/current facing mode
+      // Use exact facingMode for iOS to force specific camera
       const constraints = {
         video: {
-          facingMode: this.facingMode,
+          facingMode: { exact: this.facingMode },
           width: { ideal: 1280 },
           height: { ideal: 720 }
         },
         audio: false
       };
 
+      console.log(`Requesting camera with facingMode: ${this.facingMode}`);
+
       this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('Camera initialized successfully');
+
+      // Log which camera we actually got
+      const videoTrack = this.stream.getVideoTracks()[0];
+      const settings = videoTrack.getSettings();
+      console.log(`Camera initialized: ${settings.facingMode || 'unknown'} camera (requested: ${this.facingMode})`);
 
       // Display live preview
       this.elements.liveVideo.srcObject = this.stream;
@@ -188,6 +195,8 @@ class UIController {
   }
 
   stop() {
+    console.log('Stopping camera...');
+
     if (this.frameCapture) {
       this.frameCapture.stop();
       this.frameCapture = null;
@@ -203,19 +212,25 @@ class UIController {
       this.countdownInterval = null;
     }
 
+    // Critical: Stop all tracks and clear stream immediately
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach(track => {
+        track.stop();
+        console.log(`Stopped track: ${track.kind}, facing: ${track.getSettings().facingMode}`);
+      });
       this.stream = null;
     }
 
     this.frameBuffer.clear();
 
+    // Clear video source
     this.elements.liveVideo.srcObject = null;
     this.elements.countdown.classList.add('hidden');
 
     this.elements.startBtn.disabled = false;
     this.elements.stopBtn.disabled = true;
-    this.showStatus('Stopped');
+
+    console.log('Camera stopped');
   }
 
   _startDelayedPlayback() {
@@ -282,14 +297,16 @@ class UIController {
       if (wasRunning) {
         this.showStatus(`Switching to ${cameraName} camera...`);
 
-        // Stop current stream
+        // Stop current stream and ensure complete cleanup
         this.stop();
 
-        // Small delay to ensure cleanup
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Longer delay for iOS to fully release camera
+        await new Promise(resolve => setTimeout(resolve, 800));
 
         // Restart with new camera
         await this.start();
+
+        console.log('Camera switch complete');
       } else {
         // Camera not running, just save the preference
         this.showStatus(`${cameraName} camera will be used when you start`, 'info');
