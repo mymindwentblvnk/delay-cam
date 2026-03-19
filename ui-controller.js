@@ -149,19 +149,39 @@ class UIController {
       this.showStatus('Starting camera...');
 
       // Request camera with saved/current facing mode
-      // Use exact facingMode for iOS to force specific camera
-      const constraints = {
-        video: {
-          facingMode: { exact: this.facingMode },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      };
+      // Try with exact first (needed for iOS), fallback to non-exact if it fails
+      let stream;
 
-      console.log(`Requesting camera with facingMode: ${this.facingMode}`);
+      try {
+        // Try exact constraint first (works on iOS/Safari)
+        const exactConstraints = {
+          video: {
+            facingMode: { exact: this.facingMode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        };
 
-      this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log(`Requesting camera with exact facingMode: ${this.facingMode}`);
+        stream = await navigator.mediaDevices.getUserMedia(exactConstraints);
+      } catch (exactError) {
+        // Fallback to non-exact constraint (works on Firefox/Chrome)
+        console.log('Exact constraint failed, trying non-exact:', exactError.message);
+
+        const fallbackConstraints = {
+          video: {
+            facingMode: this.facingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        };
+
+        stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+      }
+
+      this.stream = stream;
 
       // Log which camera we actually got
       const videoTrack = this.stream.getVideoTracks()[0];
