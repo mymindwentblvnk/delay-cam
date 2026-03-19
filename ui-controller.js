@@ -19,7 +19,39 @@ class UIController {
       countdownTimer: document.querySelector('.countdown-timer')
     };
 
+    this._loadSavedDelay();
     this._attachEventListeners();
+  }
+
+  _loadSavedDelay() {
+    // Load saved delay from localStorage
+    const savedDelay = localStorage.getItem('delaycam-delay');
+
+    if (savedDelay) {
+      const delay = parseInt(savedDelay);
+
+      // Validate delay is within range
+      if (delay >= 5 && delay <= 30) {
+        // Update UI
+        this.elements.delaySlider.value = delay;
+        this.elements.delayValue.textContent = delay;
+        this.elements.delayDisplay.textContent = `${delay}s`;
+
+        // Update buffer
+        this.frameBuffer.setDelay(delay);
+
+        // Update memory estimate
+        const estimatedMB = (30 * delay * 1280 * 720 * 4) / (1024 * 1024);
+        document.getElementById('memory-estimate').textContent = estimatedMB.toFixed(1);
+
+        console.log(`Loaded saved delay: ${delay}s`);
+      }
+    }
+  }
+
+  _saveDelay(delay) {
+    localStorage.setItem('delaycam-delay', delay.toString());
+    console.log(`Saved delay: ${delay}s`);
   }
 
   async start() {
@@ -156,6 +188,9 @@ class UIController {
       // Update memory estimate (30fps * delay * 4 bytes per pixel * 1280*720)
       const estimatedMB = (30 * delay * 1280 * 720 * 4) / (1024 * 1024);
       document.getElementById('memory-estimate').textContent = estimatedMB.toFixed(1);
+
+      // Save to localStorage
+      this._saveDelay(delay);
     });
 
     this.elements.fullscreenBtn.addEventListener('click', () => {
