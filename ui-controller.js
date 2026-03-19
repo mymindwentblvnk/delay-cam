@@ -84,6 +84,11 @@ class UIController {
     const buildTimestamp = '2026-03-19T22:08:14Z'; // DEPLOYMENT_TIMESTAMP
 
     try {
+      if (!this.elements.deployTime) {
+        console.error('Deploy time element not found!');
+        return;
+      }
+
       const date = new Date(buildTimestamp);
       const options = {
         year: 'numeric',
@@ -94,23 +99,49 @@ class UIController {
         timeZoneName: 'short'
       };
       this.elements.deployTime.textContent = date.toLocaleString(undefined, options);
+      console.log('Deployment time set:', this.elements.deployTime.textContent);
     } catch (error) {
-      this.elements.deployTime.textContent = buildTimestamp;
+      console.error('Error setting deployment time:', error);
+      if (this.elements.deployTime) {
+        this.elements.deployTime.textContent = buildTimestamp;
+      }
     }
   }
 
   _openInfoModal() {
-    // Update current settings
-    const cameraName = this.facingMode === 'environment' ? 'Rear Camera' : 'Front Camera';
-    this.elements.currentCamera.textContent = cameraName;
-    this.elements.currentDelay.textContent = `${this.elements.delayValue.textContent}s`;
+    console.log('Opening info modal');
 
-    // Show modal
-    this.elements.infoModal.classList.remove('hidden');
+    try {
+      if (!this.elements.infoModal) {
+        console.error('Info modal element not found!');
+        return;
+      }
+
+      // Update current settings
+      const cameraName = this.facingMode === 'environment' ? 'Rear Camera' : 'Front Camera';
+
+      if (this.elements.currentCamera) {
+        this.elements.currentCamera.textContent = cameraName;
+      }
+
+      if (this.elements.currentDelay) {
+        this.elements.currentDelay.textContent = `${this.elements.delayValue.textContent}s`;
+      }
+
+      // Show modal
+      this.elements.infoModal.classList.remove('hidden');
+      console.log('Info modal opened');
+    } catch (error) {
+      console.error('Error opening info modal:', error);
+    }
   }
 
   _closeInfoModal() {
-    this.elements.infoModal.classList.add('hidden');
+    console.log('Closing info modal');
+
+    if (this.elements.infoModal) {
+      this.elements.infoModal.classList.add('hidden');
+    }
   }
 
   async start() {
@@ -301,11 +332,14 @@ class UIController {
       this._toggleFullscreen();
     });
 
-    this.elements.infoBtn.addEventListener('click', () => {
+    this.elements.infoBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      console.log('Info button clicked');
       this._openInfoModal();
     });
 
-    this.elements.closeModal.addEventListener('click', () => {
+    this.elements.closeModal.addEventListener('click', (e) => {
+      e.preventDefault();
       this._closeInfoModal();
     });
 
