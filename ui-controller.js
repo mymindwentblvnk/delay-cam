@@ -28,6 +28,7 @@ class UIController {
 
     // Default to rear camera
     this.facingMode = 'environment';
+    this.isSwitchingCamera = false;
 
     // Set deployment time
     this._setDeploymentTime();
@@ -211,6 +212,14 @@ class UIController {
     } catch (error) {
       console.error('Start error:', error);
       this.showStatus(`Error: ${error.message}`, 'error');
+
+      // Clean up on error
+      if (this.stream) {
+        this.stream.getTracks().forEach(track => track.stop());
+        this.stream = null;
+      }
+      this.elements.startBtn.disabled = false;
+      this.elements.stopBtn.disabled = true;
     }
   }
 
@@ -304,6 +313,12 @@ class UIController {
     try {
       console.log('Flip camera button clicked');
 
+      // Prevent multiple simultaneous switches
+      if (this.isSwitchingCamera) {
+        console.log('Camera switch already in progress, ignoring');
+        return;
+      }
+
       // Toggle facing mode
       this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
       this._saveCamera(this.facingMode);
@@ -315,17 +330,53 @@ class UIController {
       const wasRunning = !this.elements.startBtn.disabled;
 
       if (wasRunning) {
+        this.isSwitchingCamera = true;
         this.showStatus(`Switching to ${cameraName} camera...`);
 
-        // Stop current stream and ensure complete cleanup
-        this.stop();
+        // Critical: Clear video srcObject BEFORE stopping stream (iOS requirement)
+        this.elements.liveVideo.srcObject = null;
 
-        // Longer delay for iOS to fully release camera
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Force a browser repaint
+        await new Promise(resolve => requestAnimationFrame(resolve));
 
-        // Restart with new camera
+        // Stop current stream with complete cleanup
+        if (this.frameCapture) {
+          this.frameCapture.stop();
+          this.frameCapture = null;
+        }
+
+        if (this.framePlayer) {
+          this.framePlayer.stop();
+          this.framePlayer = null;
+        }
+
+        if (this.countdownInterval) {
+          clearInterval(this.countdownInterval);
+          this.countdownInterval = null;
+        }
+
+        // Stop all media tracks
+        if (this.stream) {
+          this.stream.getTracks().forEach(track => {
+            track.stop();
+            console.log(`Stopped ${track.kind} track (${track.label})`);
+          });
+          this.stream = null;
+        }
+
+        this.frameBuffer.clear();
+        this.elements.countdown.classList.add('hidden');
+
+        console.log('All streams stopped, waiting for camera release...');
+
+        // Critical: Wait for iOS to fully release camera hardware
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Now restart with new camera
+        console.log('Starting new camera...');
         await this.start();
 
+        this.isSwitchingCamera = false;
         console.log('Camera switch complete');
       } else {
         // Camera not running, just save the preference
@@ -335,10 +386,15 @@ class UIController {
         }, 2000);
       }
 
-      console.log(`Camera switched to: ${this.facingMode}`);
+      console.log(`Camera preference set to: ${this.facingMode}`);
     } catch (error) {
+      this.isSwitchingCamera = false;
       console.error('Flip camera error:', error);
       this.showStatus(`Error switching camera: ${error.message}`, 'error');
+
+      // Try to recover by re-enabling start button
+      this.elements.startBtn.disabled = false;
+      this.elements.stopBtn.disabled = true;
     }
   }
 
