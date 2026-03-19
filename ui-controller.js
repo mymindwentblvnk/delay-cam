@@ -192,35 +192,53 @@ class UIController {
   }
 
   async flipCamera() {
-    // Toggle facing mode
-    this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
-    this._saveCamera(this.facingMode);
+    try {
+      console.log('Flip camera button clicked');
 
-    const cameraName = this.facingMode === 'environment' ? 'Rear' : 'Front';
-    this.showStatus(`Switching to ${cameraName} camera...`);
+      // Toggle facing mode
+      this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+      this._saveCamera(this.facingMode);
 
-    // If camera is running, restart it with new facing mode
-    const wasRunning = !this.elements.startBtn.disabled;
+      const cameraName = this.facingMode === 'environment' ? 'Rear' : 'Front';
+      console.log(`Switching to ${cameraName} camera`);
 
-    if (wasRunning) {
-      // Stop current stream
-      this.stop();
+      // If camera is running, restart it with new facing mode
+      const wasRunning = !this.elements.startBtn.disabled;
 
-      // Small delay to ensure cleanup
-      await new Promise(resolve => setTimeout(resolve, 300));
+      if (wasRunning) {
+        this.showStatus(`Switching to ${cameraName} camera...`);
 
-      // Restart with new camera
-      await this.start();
+        // Stop current stream
+        this.stop();
+
+        // Small delay to ensure cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Restart with new camera
+        await this.start();
+      } else {
+        // Camera not running, just save the preference
+        this.showStatus(`${cameraName} camera will be used when you start`, 'info');
+        setTimeout(() => {
+          this.showStatus('Tap "Start Camera" to begin');
+        }, 2000);
+      }
+
+      console.log(`Camera switched to: ${this.facingMode}`);
+    } catch (error) {
+      console.error('Flip camera error:', error);
+      this.showStatus(`Error switching camera: ${error.message}`, 'error');
     }
-
-    console.log(`Camera switched to: ${this.facingMode}`);
   }
 
   _attachEventListeners() {
     this.elements.startBtn.addEventListener('click', () => this.start());
     this.elements.stopBtn.addEventListener('click', () => this.stop());
 
-    this.elements.flipCameraBtn.addEventListener('click', () => this.flipCamera());
+    this.elements.flipCameraBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await this.flipCamera();
+    });
 
     this.elements.delaySlider.addEventListener('input', (e) => {
       const delay = parseInt(e.target.value);

@@ -85,6 +85,9 @@ button {
   cursor: pointer;
   touch-action: manipulation;
   font-weight: bold;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .btn-primary {
