@@ -1,0 +1,16 @@
+{
+  "name": "DelayCam - Sports Training",
+  "short_name": "DelayCam",
+  "description": "Instant video feedback for sports and fitness training",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#4CAF50",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%234CAF50' width='100' height='100'/><text y='75' font-size='70' fill='white' text-anchor='middle' x='50'>⏱️</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

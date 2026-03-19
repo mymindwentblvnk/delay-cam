@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>DelayCam - Sports Training</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Small live preview -->
+    <div class="live-preview">
+      <video id="live-video" autoplay muted playsinline></video>
+      <div class="label">LIVE</div>
+    </div>
+
+    <!-- Large delayed playback -->
+    <div class="delayed-view">
+      <video id="delayed-video" autoplay muted playsinline></video>
+      <div class="label">DELAYED: <span id="delay-display">10s</span></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button id="start-btn" class="btn-primary">Start Camera</button>
+      <button id="stop-btn" class="btn-secondary" disabled>Stop</button>
+
+      <div class="delay-control">
+        <label>
+          Delay: <span id="delay-value">10</span> seconds
+          <span class="memory-info">(~<span id="memory-estimate">3.1</span> MB)</span>
+        </label>
+        <input type="range" id="delay-slider" min="5" max="30" value="10" step="5">
+      </div>
+
+      <button id="fullscreen-btn" class="btn-icon">⛶</button>
+    </div>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script src="buffer-manager.js"></script>
+  <script src="camera-handler.js"></script>
+  <script src="ui-controller.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

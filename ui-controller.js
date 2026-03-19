@@ -1,0 +1,145 @@
+class UIController {
+  constructor(bufferManager, cameraHandler) {
+    this.bufferManager = bufferManager;
+    this.cameraHandler = cameraHandler;
+    this.updateInterval = null;
+
+    this.elements = {
+      liveVideo: document.getElementById('live-video'),
+      delayedVideo: document.getElementById('delayed-video'),
+      startBtn: document.getElementById('start-btn'),
+      stopBtn: document.getElementById('stop-btn'),
+      delaySlider: document.getElementById('delay-slider'),
+      delayValue: document.getElementById('delay-value'),
+      delayDisplay: document.getElementById('delay-display'),
+      fullscreenBtn: document.getElementById('fullscreen-btn'),
+      status: document.getElementById('status')
+    };
+
+    this._attachEventListeners();
+  }
+
+  async start() {
+    try {
+      this.showStatus('Starting camera...');
+
+      // Initialize camera (must be called from user gesture)
+      const stream = await this.cameraHandler.initialize();
+
+      // Display live preview
+      this.elements.liveVideo.srcObject = stream;
+
+      // Start recording
+      this.cameraHandler.startRecording();
+
+      // Start updating delayed video
+      this._startDelayedPlayback();
+
+      this.elements.startBtn.disabled = true;
+      this.elements.stopBtn.disabled = false;
+      this.showStatus('Recording...');
+    } catch (error) {
+      this.showStatus(`Error: ${error.message}`, 'error');
+    }
+  }
+
+  stop() {
+    this.cameraHandler.stopRecording();
+    this.bufferManager.clear();
+
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+
+    this.elements.liveVideo.srcObject = null;
+    this.elements.delayedVideo.src = '';
+
+    this.elements.startBtn.disabled = false;
+    this.elements.stopBtn.disabled = true;
+    this.showStatus('Stopped');
+  }
+
+  _startDelayedPlayback() {
+    // Update delayed video every 100ms
+    this.updateInterval = setInterval(() => {
+      const chunks = this.bufferManager.getPlayableChunks();
+
+      if (chunks.length > 0) {
+        const blob = new Blob(chunks, { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+
+        // Update video source
+        this.elements.delayedVideo.src = url;
+
+        // Clean up old URL after loading
+        this.elements.delayedVideo.onloadeddata = () => {
+          URL.revokeObjectURL(url);
+        };
+      }
+    }, 100);
+  }
+
+  _attachEventListeners() {
+    this.elements.startBtn.addEventListener('click', () => this.start());
+    this.elements.stopBtn.addEventListener('click', () => this.stop());
+
+    this.elements.delaySlider.addEventListener('input', (e) => {
+      const delay = parseInt(e.target.value);
+      this.bufferManager.setDelay(delay);
+      this.elements.delayValue.textContent = delay;
+      this.elements.delayDisplay.textContent = `${delay}s`;
+
+      // Update memory estimate (2.5 Mbps bitrate / 8 = MB per second)
+      const estimatedMB = (2.5 * delay / 8).toFixed(1);
+      document.getElementById('memory-estimate').textContent = estimatedMB;
+    });
+
+    this.elements.fullscreenBtn.addEventListener('click', () => {
+      this._toggleFullscreen();
+    });
+
+    // Stop camera when tab becomes hidden or browser closes
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && !this.elements.startBtn.disabled) {
+        this.stop();
+        this.showStatus('Camera stopped (tab hidden)');
+      }
+    });
+
+    // Stop camera when page unloads (browser close, navigation)
+    window.addEventListener('beforeunload', () => {
+      if (!this.elements.startBtn.disabled) {
+        this.stop();
+      }
+    });
+
+    // Additional handler for mobile (more reliable)
+    window.addEventListener('pagehide', () => {
+      if (!this.elements.startBtn.disabled) {
+        this.stop();
+      }
+    });
+  }
+
+  _toggleFullscreen() {
+    const elem = document.documentElement;
+
+    if (!document.fullscreenElement) {
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+      } else if (elem.webkitRequestFullscreen) { // iOS Safari
+        elem.webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  }
+
+  showStatus(message, type = 'info') {
+    this.elements.status.textContent = message;
+    this.elements.status.className = `status ${type}`;
+  }
+}
