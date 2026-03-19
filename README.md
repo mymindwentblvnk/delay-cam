@@ -53,7 +53,7 @@ The app automatically deploys to GitHub Pages on every push to `main`:
 2. Small **live preview** appears in top-right corner
 3. Large **delayed playback** shows you from X seconds ago
 4. Adjust **delay slider** to change feedback timing (5-30 seconds)
-5. Tap **fullscreen** button for immersive experience
+5. Tap **Info** button (ℹ️) to see deployment time and settings
 6. Tap **Stop** when finished
 
 ## iOS Setup (Recommended)
@@ -68,9 +68,9 @@ For the best experience on iPhone/iPad:
 ## Technical Details
 
 ### Architecture
-- **Canvas-based frame capture** - Captures video frames at 30fps using HTML5 Canvas
+- **Canvas-based frame capture** - Captures video frames at 20fps (640×360 resolution) using HTML5 Canvas
 - **Frame buffer** - Stores frames in memory with timestamps
-- **Memory-efficient** - Only keeps frames for configured delay duration
+- **Memory-optimized** - Reduced resolution and frame rate for iOS stability
 - **Automatic cleanup** - Removes old frames continuously
 - **No video encoding** - Direct frame-to-canvas display (bypasses iOS codec issues)
 
@@ -79,14 +79,16 @@ For the best experience on iPhone/iPad:
 - **Chrome/Edge** (desktop and Android)
 - **Firefox** (desktop and Android)
 
-### Memory Usage (30fps frame capture)
-- 5 seconds: ~42 MB
-- 10 seconds: ~84 MB (default)
-- 15 seconds: ~126 MB
-- 20 seconds: ~168 MB
-- 30 seconds: ~252 MB
+### Memory Usage (20fps @ 640×360)
+- 5 seconds: ~8.8 MB
+- 10 seconds: ~17.6 MB (default)
+- 15 seconds: ~26.4 MB
+- 20 seconds: ~35.2 MB
+- 30 seconds: ~52.8 MB
 
 *All memory is temporary RAM - deleted when you stop the camera*
+
+**Optimized for iOS:** Resolution and frame rate tuned to prevent crashes on mobile devices while maintaining clear video quality for sports training feedback.
 
 ### Privacy & Security
 
