@@ -13,11 +13,15 @@ class UIController {
       delaySlider: document.getElementById('delay-slider'),
       delayValue: document.getElementById('delay-value'),
       delayDisplay: document.getElementById('delay-display'),
+      flipCameraBtn: document.getElementById('flip-camera-btn'),
       fullscreenBtn: document.getElementById('fullscreen-btn'),
       status: document.getElementById('status'),
       countdown: document.getElementById('countdown'),
       countdownTimer: document.querySelector('.countdown-timer')
     };
+
+    // Default to rear camera
+    this.facingMode = 'environment';
 
     this._loadSavedDelay();
     this._attachEventListeners();
@@ -47,6 +51,13 @@ class UIController {
         console.log(`Loaded saved delay: ${delay}s`);
       }
     }
+
+    // Load saved camera facing mode from localStorage
+    const savedFacingMode = localStorage.getItem('delaycam-camera');
+    if (savedFacingMode === 'user' || savedFacingMode === 'environment') {
+      this.facingMode = savedFacingMode;
+      console.log(`Loaded saved camera: ${this.facingMode}`);
+    }
   }
 
   _saveDelay(delay) {
@@ -54,14 +65,19 @@ class UIController {
     console.log(`Saved delay: ${delay}s`);
   }
 
+  _saveCamera(facingMode) {
+    localStorage.setItem('delaycam-camera', facingMode);
+    console.log(`Saved camera: ${facingMode}`);
+  }
+
   async start() {
     try {
       this.showStatus('Starting camera...');
 
-      // Request camera
+      // Request camera with saved/current facing mode
       const constraints = {
         video: {
-          facingMode: 'environment',
+          facingMode: this.facingMode,
           width: { ideal: 1280 },
           height: { ideal: 720 }
         },
@@ -175,9 +191,36 @@ class UIController {
     checkBuffer();
   }
 
+  async flipCamera() {
+    // Toggle facing mode
+    this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+    this._saveCamera(this.facingMode);
+
+    const cameraName = this.facingMode === 'environment' ? 'Rear' : 'Front';
+    this.showStatus(`Switching to ${cameraName} camera...`);
+
+    // If camera is running, restart it with new facing mode
+    const wasRunning = !this.elements.startBtn.disabled;
+
+    if (wasRunning) {
+      // Stop current stream
+      this.stop();
+
+      // Small delay to ensure cleanup
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Restart with new camera
+      await this.start();
+    }
+
+    console.log(`Camera switched to: ${this.facingMode}`);
+  }
+
   _attachEventListeners() {
     this.elements.startBtn.addEventListener('click', () => this.start());
     this.elements.stopBtn.addEventListener('click', () => this.stop());
+
+    this.elements.flipCameraBtn.addEventListener('click', () => this.flipCamera());
 
     this.elements.delaySlider.addEventListener('input', (e) => {
       const delay = parseInt(e.target.value);
