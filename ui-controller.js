@@ -15,13 +15,22 @@ class UIController {
       delayDisplay: document.getElementById('delay-display'),
       flipCameraBtn: document.getElementById('flip-camera-btn'),
       fullscreenBtn: document.getElementById('fullscreen-btn'),
+      infoBtn: document.getElementById('info-btn'),
       status: document.getElementById('status'),
       countdown: document.getElementById('countdown'),
-      countdownTimer: document.querySelector('.countdown-timer')
+      countdownTimer: document.querySelector('.countdown-timer'),
+      infoModal: document.getElementById('info-modal'),
+      closeModal: document.getElementById('close-modal'),
+      deployTime: document.getElementById('deploy-time'),
+      currentCamera: document.getElementById('current-camera'),
+      currentDelay: document.getElementById('current-delay')
     };
 
     // Default to rear camera
     this.facingMode = 'environment';
+
+    // Set deployment time
+    this._setDeploymentTime();
 
     this._loadSavedDelay();
     this._attachEventListeners();
@@ -68,6 +77,40 @@ class UIController {
   _saveCamera(facingMode) {
     localStorage.setItem('delaycam-camera', facingMode);
     console.log(`Saved camera: ${facingMode}`);
+  }
+
+  _setDeploymentTime() {
+    // Build timestamp - will be updated during deployment
+    const buildTimestamp = '2026-03-19T22:08:14Z'; // DEPLOYMENT_TIMESTAMP
+
+    try {
+      const date = new Date(buildTimestamp);
+      const options = {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      };
+      this.elements.deployTime.textContent = date.toLocaleString(undefined, options);
+    } catch (error) {
+      this.elements.deployTime.textContent = buildTimestamp;
+    }
+  }
+
+  _openInfoModal() {
+    // Update current settings
+    const cameraName = this.facingMode === 'environment' ? 'Rear Camera' : 'Front Camera';
+    this.elements.currentCamera.textContent = cameraName;
+    this.elements.currentDelay.textContent = `${this.elements.delayValue.textContent}s`;
+
+    // Show modal
+    this.elements.infoModal.classList.remove('hidden');
+  }
+
+  _closeInfoModal() {
+    this.elements.infoModal.classList.add('hidden');
   }
 
   async start() {
@@ -256,6 +299,21 @@ class UIController {
 
     this.elements.fullscreenBtn.addEventListener('click', () => {
       this._toggleFullscreen();
+    });
+
+    this.elements.infoBtn.addEventListener('click', () => {
+      this._openInfoModal();
+    });
+
+    this.elements.closeModal.addEventListener('click', () => {
+      this._closeInfoModal();
+    });
+
+    // Close modal when clicking outside
+    this.elements.infoModal.addEventListener('click', (e) => {
+      if (e.target === this.elements.infoModal) {
+        this._closeInfoModal();
+      }
     });
 
     // Stop camera when tab becomes hidden or browser closes

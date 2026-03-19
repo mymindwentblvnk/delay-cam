@@ -24,6 +24,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Update deployment timestamp
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "Updating deployment timestamp to: $TIMESTAMP"
+          sed -i "s/const buildTimestamp = '.*'; \/\/ DEPLOYMENT_TIMESTAMP/const buildTimestamp = '$TIMESTAMP'; \/\/ DEPLOYMENT_TIMESTAMP/" ui-controller.js
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 

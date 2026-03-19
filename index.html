@@ -42,9 +42,40 @@
 
       <button id="flip-camera-btn" class="btn-icon" title="Switch Camera">🔄</button>
       <button id="fullscreen-btn" class="btn-icon" title="Fullscreen">⛶</button>
+      <button id="info-btn" class="btn-icon" title="App Info">ℹ️</button>
     </div>
 
     <div id="status" class="status"></div>
+
+    <!-- Info Modal -->
+    <div id="info-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>DelayCam Info</h2>
+          <button id="close-modal" class="close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="info-item">
+            <strong>Version:</strong> 1.0.0
+          </div>
+          <div class="info-item">
+            <strong>Last Deployed:</strong>
+            <span id="deploy-time">Loading...</span>
+          </div>
+          <div class="info-item">
+            <strong>Camera:</strong>
+            <span id="current-camera">Not started</span>
+          </div>
+          <div class="info-item">
+            <strong>Delay Setting:</strong>
+            <span id="current-delay">10s</span>
+          </div>
+          <div class="info-item small">
+            Built with ❤️ for sports training
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="frame-buffer.js"></script>
