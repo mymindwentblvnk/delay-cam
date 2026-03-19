@@ -70,9 +70,10 @@ class UIController {
 
   _startDelayedPlayback() {
     let lastBlobUrl = null;
-    let isPlaying = false;
     let bufferStartTime = Date.now();
     let countdownInterval = null;
+    let playbackInterval = null;
+    let isFirstSegment = true;
 
     // Show countdown overlay
     this.elements.countdown.classList.remove('hidden');
@@ -85,77 +86,78 @@ class UIController {
 
       this.elements.countdownTimer.textContent = remainingSeconds;
 
-      if (remainingSeconds === 0) {
+      if (remainingSeconds === 0 && countdownInterval) {
         clearInterval(countdownInterval);
+        countdownInterval = null;
       }
     }, 100);
 
-    const playNextSegment = () => {
-      // Check if we have enough buffered data
+    // Wait for initial buffer, then start continuous playback
+    const startContinuousPlayback = () => {
       if (!this.bufferManager.hasEnoughData()) {
-        const delay = this.bufferManager.delayMs / 1000;
-        const elapsedMs = Date.now() - bufferStartTime;
-        const remainingSeconds = Math.max(0, Math.ceil((this.bufferManager.delayMs - elapsedMs) / 1000));
-
-        this.showStatus(`Buffering for ${delay}s delay...`);
-        setTimeout(playNextSegment, 500);
+        setTimeout(startContinuousPlayback, 500);
         return;
       }
 
-      // Hide countdown once we have enough data
+      // Hide countdown
       if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
       }
       this.elements.countdown.classList.add('hidden');
+      this.showStatus('Recording...');
 
-      // Get chunks from the delayed timepoint
-      const chunks = this.bufferManager.getDelayedChunks();
+      // Update delayed video every 2 seconds
+      playbackInterval = setInterval(() => {
+        const segment = this.bufferManager.getDelayedSegment();
 
-      if (chunks.length === 0) {
-        setTimeout(playNextSegment, 500);
-        return;
-      }
+        if (!segment) {
+          console.log('No delayed segment available');
+          return;
+        }
 
-      // Create video blob from delayed chunks
-      const mimeType = this.cameraHandler.mimeType || 'video/webm';
-      const blob = new Blob(chunks, { type: mimeType });
+        console.log(`Playing delayed segment: ${(segment.blob.size / 1024).toFixed(1)}KB, type: ${segment.mimeType}`);
 
-      // Clean up old blob URL
-      if (lastBlobUrl) {
-        URL.revokeObjectURL(lastBlobUrl);
-      }
+        // Clean up old blob URL
+        if (lastBlobUrl) {
+          URL.revokeObjectURL(lastBlobUrl);
+        }
 
-      lastBlobUrl = URL.createObjectURL(blob);
-      this.elements.delayedVideo.src = lastBlobUrl;
+        lastBlobUrl = URL.createObjectURL(segment.blob);
 
-      // Play the segment
-      this.elements.delayedVideo.play().then(() => {
-        isPlaying = true;
-        this.showStatus('Recording...');
-      }).catch(err => {
-        console.log('Delayed video play error:', err);
-      });
+        // Update video src and play
+        const video = this.elements.delayedVideo;
+        const previousSrc = video.src;
+        video.src = lastBlobUrl;
 
-      // Queue next segment when this one ends
-      this.elements.delayedVideo.onended = () => {
-        playNextSegment();
-      };
-
-      // Also refresh after a timeout as backup
-      setTimeout(playNextSegment, 2000);
+        // Force load and play
+        video.load();
+        video.play().then(() => {
+          if (isFirstSegment) {
+            console.log('First delayed segment playing successfully!');
+            isFirstSegment = false;
+          }
+        }).catch(err => {
+          console.error('Delayed video play error:', err);
+        });
+      }, 2000); // Update every 2 seconds (matches segment duration)
     };
 
-    // Start the playback loop
-    playNextSegment();
+    startContinuousPlayback();
 
     // Store the cleanup function
     this.stopDelayedPlayback = () => {
       if (lastBlobUrl) {
         URL.revokeObjectURL(lastBlobUrl);
+        lastBlobUrl = null;
       }
       if (countdownInterval) {
         clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+      if (playbackInterval) {
+        clearInterval(playbackInterval);
+        playbackInterval = null;
       }
       this.elements.delayedVideo.onended = null;
       this.elements.countdown.classList.add('hidden');

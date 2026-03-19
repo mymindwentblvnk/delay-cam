@@ -1,8 +1,8 @@
 class CameraHandler {
-  constructor(onChunkReady) {
+  constructor(onSegmentReady) {
     this.stream = null;
-    this.recorder = null;
-    this.onChunkReady = onChunkReady;
+    this.segmentRecorder = null;
+    this.onSegmentReady = onSegmentReady;
   }
 
   async initialize() {
@@ -18,8 +18,10 @@ class CameraHandler {
       };
 
       this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('Camera initialized successfully');
       return this.stream;
     } catch (error) {
+      console.error('Camera initialization failed:', error);
       throw new Error(`Camera access failed: ${error.message}`);
     }
   }
@@ -29,54 +31,21 @@ class CameraHandler {
       throw new Error('Camera not initialized');
     }
 
-    // Detect supported codec for iOS
-    this.mimeType = this._getSupportedMimeType();
-
-    const options = {
-      videoBitsPerSecond: 2500000 // 2.5 Mbps
-    };
-
-    // Only set mimeType if we found a supported one
-    if (this.mimeType) {
-      options.mimeType = this.mimeType;
-    }
-
-    this.recorder = new MediaRecorder(this.stream, options);
-
-    // Capture chunks every 100ms for smooth playback
-    this.recorder.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) {
-        this.onChunkReady(event.data);
-      }
-    };
-
-    this.recorder.start(100); // 100ms timeslice
+    console.log('Starting segment recorder...');
+    this.segmentRecorder = new SegmentRecorder(this.stream, this.onSegmentReady);
+    this.segmentRecorder.start();
   }
 
   stopRecording() {
-    if (this.recorder && this.recorder.state !== 'inactive') {
-      this.recorder.stop();
+    if (this.segmentRecorder) {
+      this.segmentRecorder.stop();
+      this.segmentRecorder = null;
     }
 
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
       this.stream = null;
+      console.log('Camera stopped');
     }
-  }
-
-  _getSupportedMimeType() {
-    const types = [
-      'video/mp4',
-      'video/webm;codecs=h264',
-      'video/webm'
-    ];
-
-    for (const type of types) {
-      if (MediaRecorder.isTypeSupported(type)) {
-        return type;
-      }
-    }
-
-    return ''; // Use default
   }
 }
