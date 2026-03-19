@@ -1,30 +1,44 @@
 class VideoBufferManager {
   constructor(delaySeconds = 10) {
     this.delayMs = delaySeconds * 1000;
-    this.chunks = []; // Array of {timestamp: Date.now(), blob: Blob}
+    this.chunks = []; // Array of {timestamp, blob}
     this.maxBufferSizeMB = 50; // iOS memory constraint
+    this.chunkDurationMs = 100; // Each chunk represents 100ms
   }
 
   addChunk(blob) {
-    const now = Date.now();
-    this.chunks.push({ timestamp: now, blob: blob });
+    const timestamp = Date.now();
+    this.chunks.push({ timestamp, blob });
 
-    // Remove chunks older than delay + 2s safety margin
-    const cutoffTime = now - this.delayMs - 2000;
+    // Keep only chunks within delay window + small buffer
+    const cutoffTime = timestamp - this.delayMs - 3000;
     this.chunks = this.chunks.filter(chunk => chunk.timestamp > cutoffTime);
 
     // Enforce memory limits for iOS
     this._enforceMemoryLimit();
   }
 
-  getPlayableChunks() {
+  getDelayedChunks() {
     const now = Date.now();
     const targetTime = now - this.delayMs;
 
-    // Get chunks that should be displayed now
+    // Get chunks from around the delayed timepoint (±2 seconds window)
+    const windowStart = targetTime - 2000;
+    const windowEnd = targetTime + 100;
+
     return this.chunks
-      .filter(chunk => chunk.timestamp <= targetTime)
+      .filter(chunk => chunk.timestamp >= windowStart && chunk.timestamp <= windowEnd)
       .map(chunk => chunk.blob);
+  }
+
+  hasEnoughData() {
+    if (this.chunks.length === 0) return false;
+
+    const now = Date.now();
+    const oldestChunk = this.chunks[0].timestamp;
+    const recordingDuration = now - oldestChunk;
+
+    return recordingDuration >= this.delayMs;
   }
 
   setDelay(seconds) {

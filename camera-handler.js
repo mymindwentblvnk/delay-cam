@@ -30,12 +30,16 @@ class CameraHandler {
     }
 
     // Detect supported codec for iOS
-    const mimeType = this._getSupportedMimeType();
+    this.mimeType = this._getSupportedMimeType();
 
     const options = {
-      mimeType: mimeType,
       videoBitsPerSecond: 2500000 // 2.5 Mbps
     };
+
+    // Only set mimeType if we found a supported one
+    if (this.mimeType) {
+      options.mimeType = this.mimeType;
+    }
 
     this.recorder = new MediaRecorder(this.stream, options);
 

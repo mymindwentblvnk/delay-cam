@@ -52,6 +52,11 @@ class UIController {
       this.updateInterval = null;
     }
 
+    if (this.stopDelayedPlayback) {
+      this.stopDelayedPlayback();
+      this.stopDelayedPlayback = null;
+    }
+
     this.elements.liveVideo.srcObject = null;
     this.elements.delayedVideo.src = '';
 
@@ -61,23 +66,65 @@ class UIController {
   }
 
   _startDelayedPlayback() {
-    // Update delayed video every 100ms
-    this.updateInterval = setInterval(() => {
-      const chunks = this.bufferManager.getPlayableChunks();
+    let lastBlobUrl = null;
+    let isPlaying = false;
 
-      if (chunks.length > 0) {
-        const blob = new Blob(chunks, { type: 'video/mp4' });
-        const url = URL.createObjectURL(blob);
-
-        // Update video source
-        this.elements.delayedVideo.src = url;
-
-        // Clean up old URL after loading
-        this.elements.delayedVideo.onloadeddata = () => {
-          URL.revokeObjectURL(url);
-        };
+    const playNextSegment = () => {
+      // Check if we have enough buffered data
+      if (!this.bufferManager.hasEnoughData()) {
+        const delay = this.bufferManager.delayMs / 1000;
+        this.showStatus(`Buffering for ${delay}s delay...`);
+        setTimeout(playNextSegment, 500);
+        return;
       }
-    }, 100);
+
+      // Get chunks from the delayed timepoint
+      const chunks = this.bufferManager.getDelayedChunks();
+
+      if (chunks.length === 0) {
+        setTimeout(playNextSegment, 500);
+        return;
+      }
+
+      // Create video blob from delayed chunks
+      const mimeType = this.cameraHandler.mimeType || 'video/webm';
+      const blob = new Blob(chunks, { type: mimeType });
+
+      // Clean up old blob URL
+      if (lastBlobUrl) {
+        URL.revokeObjectURL(lastBlobUrl);
+      }
+
+      lastBlobUrl = URL.createObjectURL(blob);
+      this.elements.delayedVideo.src = lastBlobUrl;
+
+      // Play the segment
+      this.elements.delayedVideo.play().then(() => {
+        isPlaying = true;
+        this.showStatus('Recording...');
+      }).catch(err => {
+        console.log('Delayed video play error:', err);
+      });
+
+      // Queue next segment when this one ends
+      this.elements.delayedVideo.onended = () => {
+        playNextSegment();
+      };
+
+      // Also refresh after a timeout as backup
+      setTimeout(playNextSegment, 2000);
+    };
+
+    // Start the playback loop
+    playNextSegment();
+
+    // Store the cleanup function
+    this.stopDelayedPlayback = () => {
+      if (lastBlobUrl) {
+        URL.revokeObjectURL(lastBlobUrl);
+      }
+      this.elements.delayedVideo.onended = null;
+    };
   }
 
   _attachEventListeners() {
