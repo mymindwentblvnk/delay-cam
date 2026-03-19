@@ -68,7 +68,7 @@ For the best experience on iPhone/iPad:
 ## Technical Details
 
 ### Architecture
-- **Canvas-based frame capture** - Captures video frames at 20fps (640×360 resolution) using HTML5 Canvas
+- **Canvas-based frame capture** - Captures video frames at 15fps (640×360 resolution) using HTML5 Canvas
 - **Frame buffer** - Stores frames in memory with timestamps
 - **Memory-optimized** - Reduced resolution and frame rate for iOS stability
 - **Automatic cleanup** - Removes old frames continuously
@@ -79,12 +79,12 @@ For the best experience on iPhone/iPad:
 - **Chrome/Edge** (desktop and Android)
 - **Firefox** (desktop and Android)
 
-### Memory Usage (20fps @ 640×360)
-- 5 seconds: ~8.8 MB
-- 10 seconds: ~17.6 MB (default)
-- 15 seconds: ~26.4 MB
-- 20 seconds: ~35.2 MB
-- 30 seconds: ~52.8 MB
+### Memory Usage (15fps @ 640×360)
+- 5 seconds: ~6.6 MB
+- 10 seconds: ~13.2 MB (default)
+- 15 seconds: ~19.8 MB
+- 20 seconds: ~26.4 MB
+- 30 seconds: ~39.6 MB
 
 *All memory is temporary RAM - deleted when you stop the camera*
 
@@ -127,11 +127,11 @@ DelayCam is built with complete privacy in mind. Your video is **never saved, ne
 
 #### What IS Stored
 
-**Only tiny user preferences in localStorage:**
+**Only tiny user preference in localStorage:**
 - Delay setting (e.g., "10") - ~10 bytes
-- Camera preference (e.g., "environment") - ~15 bytes
-- **Total:** ~50 bytes of plain text
+- **Total:** ~10 bytes of plain text
 - **No video, no images, no personal data**
+- **Note:** Camera is always rear-facing (no preference stored)
 
 #### Security Features
 
