@@ -13,7 +13,6 @@ class UIController {
       delaySlider: document.getElementById('delay-slider'),
       delayValue: document.getElementById('delay-value'),
       delayDisplay: document.getElementById('delay-display'),
-      flipCameraBtn: document.getElementById('flip-camera-btn'),
       fullscreenBtn: document.getElementById('fullscreen-btn'),
       infoBtn: document.getElementById('info-btn'),
       status: document.getElementById('status'),
@@ -25,10 +24,6 @@ class UIController {
       currentCamera: document.getElementById('current-camera'),
       currentDelay: document.getElementById('current-delay')
     };
-
-    // Default to rear camera
-    this.facingMode = 'environment';
-    this.isSwitchingCamera = false;
 
     // Set deployment time
     this._setDeploymentTime();
@@ -61,23 +56,11 @@ class UIController {
         console.log(`Loaded saved delay: ${delay}s`);
       }
     }
-
-    // Load saved camera facing mode from localStorage
-    const savedFacingMode = localStorage.getItem('delaycam-camera');
-    if (savedFacingMode === 'user' || savedFacingMode === 'environment') {
-      this.facingMode = savedFacingMode;
-      console.log(`Loaded saved camera: ${this.facingMode}`);
-    }
   }
 
   _saveDelay(delay) {
     localStorage.setItem('delaycam-delay', delay.toString());
     console.log(`Saved delay: ${delay}s`);
-  }
-
-  _saveCamera(facingMode) {
-    localStorage.setItem('delaycam-camera', facingMode);
-    console.log(`Saved camera: ${facingMode}`);
   }
 
   _setDeploymentTime() {
@@ -119,10 +102,8 @@ class UIController {
       }
 
       // Update current settings
-      const cameraName = this.facingMode === 'environment' ? 'Rear Camera' : 'Front Camera';
-
       if (this.elements.currentCamera) {
-        this.elements.currentCamera.textContent = cameraName;
+        this.elements.currentCamera.textContent = 'Rear Camera';
       }
 
       if (this.elements.currentDelay) {
@@ -149,7 +130,7 @@ class UIController {
     try {
       this.showStatus('Starting camera...');
 
-      // Request camera with saved/current facing mode
+      // Request rear camera
       // Try with exact first (needed for iOS), fallback to non-exact if it fails
       let stream;
 
@@ -157,14 +138,14 @@ class UIController {
         // Try exact constraint first (works on iOS/Safari)
         const exactConstraints = {
           video: {
-            facingMode: { exact: this.facingMode },
+            facingMode: { exact: 'environment' },
             width: { ideal: 1280 },
             height: { ideal: 720 }
           },
           audio: false
         };
 
-        console.log(`Requesting camera with exact facingMode: ${this.facingMode}`);
+        console.log('Requesting rear camera with exact constraint');
         stream = await navigator.mediaDevices.getUserMedia(exactConstraints);
       } catch (exactError) {
         // Fallback to non-exact constraint (works on Firefox/Chrome)
@@ -172,7 +153,7 @@ class UIController {
 
         const fallbackConstraints = {
           video: {
-            facingMode: this.facingMode,
+            facingMode: 'environment',
             width: { ideal: 1280 },
             height: { ideal: 720 }
           },
@@ -187,7 +168,7 @@ class UIController {
       // Log which camera we actually got
       const videoTrack = this.stream.getVideoTracks()[0];
       const settings = videoTrack.getSettings();
-      console.log(`Camera initialized: ${settings.facingMode || 'unknown'} camera (requested: ${this.facingMode})`);
+      console.log(`Camera initialized: ${settings.facingMode || 'unknown'} (rear camera)`);
 
       // Display live preview
       this.elements.liveVideo.srcObject = this.stream;
@@ -309,103 +290,9 @@ class UIController {
     checkBuffer();
   }
 
-  async flipCamera() {
-    try {
-      console.log('Flip camera button clicked');
-
-      // Prevent multiple simultaneous switches
-      if (this.isSwitchingCamera) {
-        console.log('Camera switch already in progress, ignoring');
-        return;
-      }
-
-      // Toggle facing mode
-      this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
-      this._saveCamera(this.facingMode);
-
-      const cameraName = this.facingMode === 'environment' ? 'Rear' : 'Front';
-      console.log(`Switching to ${cameraName} camera`);
-
-      // If camera is running, restart it with new facing mode
-      const wasRunning = !this.elements.startBtn.disabled;
-
-      if (wasRunning) {
-        this.isSwitchingCamera = true;
-        this.showStatus(`Switching to ${cameraName} camera...`);
-
-        // Critical: Clear video srcObject BEFORE stopping stream (iOS requirement)
-        this.elements.liveVideo.srcObject = null;
-
-        // Force a browser repaint
-        await new Promise(resolve => requestAnimationFrame(resolve));
-
-        // Stop current stream with complete cleanup
-        if (this.frameCapture) {
-          this.frameCapture.stop();
-          this.frameCapture = null;
-        }
-
-        if (this.framePlayer) {
-          this.framePlayer.stop();
-          this.framePlayer = null;
-        }
-
-        if (this.countdownInterval) {
-          clearInterval(this.countdownInterval);
-          this.countdownInterval = null;
-        }
-
-        // Stop all media tracks
-        if (this.stream) {
-          this.stream.getTracks().forEach(track => {
-            track.stop();
-            console.log(`Stopped ${track.kind} track (${track.label})`);
-          });
-          this.stream = null;
-        }
-
-        this.frameBuffer.clear();
-        this.elements.countdown.classList.add('hidden');
-
-        console.log('All streams stopped, waiting for camera release...');
-
-        // Critical: Wait for iOS to fully release camera hardware
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Now restart with new camera
-        console.log('Starting new camera...');
-        await this.start();
-
-        this.isSwitchingCamera = false;
-        console.log('Camera switch complete');
-      } else {
-        // Camera not running, just save the preference
-        this.showStatus(`${cameraName} camera will be used when you start`, 'info');
-        setTimeout(() => {
-          this.showStatus('Tap "Start Camera" to begin');
-        }, 2000);
-      }
-
-      console.log(`Camera preference set to: ${this.facingMode}`);
-    } catch (error) {
-      this.isSwitchingCamera = false;
-      console.error('Flip camera error:', error);
-      this.showStatus(`Error switching camera: ${error.message}`, 'error');
-
-      // Try to recover by re-enabling start button
-      this.elements.startBtn.disabled = false;
-      this.elements.stopBtn.disabled = true;
-    }
-  }
-
   _attachEventListeners() {
     this.elements.startBtn.addEventListener('click', () => this.start());
     this.elements.stopBtn.addEventListener('click', () => this.stop());
-
-    this.elements.flipCameraBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await this.flipCamera();
-    });
 
     this.elements.delaySlider.addEventListener('input', (e) => {
       const delay = parseInt(e.target.value);
