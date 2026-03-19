@@ -1,7 +1,7 @@
 class FrameBuffer {
   constructor(delaySeconds = 10) {
     this.delayMs = delaySeconds * 1000;
-    this.fps = 20; // Reduced from 30 for memory optimization
+    this.fps = 15; // Optimized for smooth playback with minimal memory
     this.frameInterval = 1000 / this.fps;
     this.frames = []; // Array of {timestamp, imageData}
     this.maxFrames = Math.ceil((delaySeconds + 5) * this.fps); // Keep delay + 5s buffer

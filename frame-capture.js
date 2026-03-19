@@ -7,8 +7,8 @@ class FrameCapture {
     this.isCapturing = false;
     this.captureInterval = null;
 
-    // Reduced settings for iOS memory constraints
-    this.fps = 20; // Reduced from 30fps
+    // Optimized settings for iOS memory constraints
+    this.fps = 15; // Optimized for smooth playback with minimal memory
     this.targetWidth = 640; // Reduced from 1280
     this.targetHeight = 360; // Reduced from 720
   }

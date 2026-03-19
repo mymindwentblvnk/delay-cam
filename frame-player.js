@@ -7,7 +7,7 @@ class FramePlayer {
     this.playInterval = null;
 
     // Match capture settings for consistency
-    this.fps = 20; // Reduced from 30fps
+    this.fps = 15; // Optimized for smooth playback with minimal memory
     this.targetWidth = 640;
     this.targetHeight = 360;
   }
