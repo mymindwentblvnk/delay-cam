@@ -1,12 +1,13 @@
 class UIController {
-  constructor(bufferManager, cameraHandler) {
-    this.bufferManager = bufferManager;
-    this.cameraHandler = cameraHandler;
-    this.updateInterval = null;
+  constructor(frameBuffer) {
+    this.frameBuffer = frameBuffer;
+    this.stream = null;
+    this.frameCapture = null;
+    this.framePlayer = null;
 
     this.elements = {
       liveVideo: document.getElementById('live-video'),
-      delayedVideo: document.getElementById('delayed-video'),
+      delayedCanvas: document.getElementById('delayed-canvas'),
       startBtn: document.getElementById('start-btn'),
       stopBtn: document.getElementById('stop-btn'),
       delaySlider: document.getElementById('delay-slider'),
@@ -25,42 +26,69 @@ class UIController {
     try {
       this.showStatus('Starting camera...');
 
-      // Initialize camera (must be called from user gesture)
-      const stream = await this.cameraHandler.initialize();
+      // Request camera
+      const constraints = {
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      };
+
+      this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('Camera initialized successfully');
 
       // Display live preview
-      this.elements.liveVideo.srcObject = stream;
+      this.elements.liveVideo.srcObject = this.stream;
 
-      // Start recording
-      this.cameraHandler.startRecording();
+      // Wait for video to be ready
+      await new Promise(resolve => {
+        this.elements.liveVideo.onloadedmetadata = resolve;
+      });
 
-      // Start updating delayed video
+      // Start frame capture
+      this.frameCapture = new FrameCapture(this.elements.liveVideo, (imageData) => {
+        this.frameBuffer.addFrame(imageData);
+      });
+      this.frameCapture.start();
+
+      // Start delayed playback
       this._startDelayedPlayback();
 
       this.elements.startBtn.disabled = true;
       this.elements.stopBtn.disabled = false;
       this.showStatus('Recording...');
     } catch (error) {
+      console.error('Start error:', error);
       this.showStatus(`Error: ${error.message}`, 'error');
     }
   }
 
   stop() {
-    this.cameraHandler.stopRecording();
-    this.bufferManager.clear();
-
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
+    if (this.frameCapture) {
+      this.frameCapture.stop();
+      this.frameCapture = null;
     }
 
-    if (this.stopDelayedPlayback) {
-      this.stopDelayedPlayback();
-      this.stopDelayedPlayback = null;
+    if (this.framePlayer) {
+      this.framePlayer.stop();
+      this.framePlayer = null;
     }
+
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
+
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+    }
+
+    this.frameBuffer.clear();
 
     this.elements.liveVideo.srcObject = null;
-    this.elements.delayedVideo.src = '';
     this.elements.countdown.classList.add('hidden');
 
     this.elements.startBtn.disabled = false;
@@ -69,99 +97,50 @@ class UIController {
   }
 
   _startDelayedPlayback() {
-    let lastBlobUrl = null;
     let bufferStartTime = Date.now();
-    let countdownInterval = null;
-    let playbackInterval = null;
-    let isFirstSegment = true;
 
     // Show countdown overlay
     this.elements.countdown.classList.remove('hidden');
 
     // Update countdown every 100ms
-    countdownInterval = setInterval(() => {
+    this.countdownInterval = setInterval(() => {
       const elapsedMs = Date.now() - bufferStartTime;
-      const remainingMs = this.bufferManager.delayMs - elapsedMs;
+      const remainingMs = this.frameBuffer.delayMs - elapsedMs;
       const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
 
       this.elements.countdownTimer.textContent = remainingSeconds;
 
-      if (remainingSeconds === 0 && countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
+      if (remainingSeconds === 0 && this.countdownInterval) {
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = null;
       }
     }, 100);
 
-    // Wait for initial buffer, then start continuous playback
-    const startContinuousPlayback = () => {
-      if (!this.bufferManager.hasEnoughData()) {
-        setTimeout(startContinuousPlayback, 500);
+    // Wait for buffer, then start playback
+    const checkBuffer = () => {
+      if (!this.frameBuffer.hasEnoughData()) {
+        setTimeout(checkBuffer, 200);
         return;
       }
 
       // Hide countdown
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
+      if (this.countdownInterval) {
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = null;
       }
       this.elements.countdown.classList.add('hidden');
+
+      // Start playing delayed frames
+      this.framePlayer = new FramePlayer(this.elements.delayedCanvas, this.frameBuffer);
+      this.framePlayer.start();
+
+      const bufferInfo = this.frameBuffer.getBufferInfo();
+      console.log(`Delayed playback started: ${bufferInfo.frameCount} frames, ${bufferInfo.durationSeconds.toFixed(1)}s`);
+
       this.showStatus('Recording...');
-
-      // Update delayed video every 2 seconds
-      playbackInterval = setInterval(() => {
-        const segment = this.bufferManager.getDelayedSegment();
-
-        if (!segment) {
-          console.log('No delayed segment available');
-          return;
-        }
-
-        console.log(`Playing delayed segment: ${(segment.blob.size / 1024).toFixed(1)}KB, type: ${segment.mimeType}`);
-
-        // Clean up old blob URL
-        if (lastBlobUrl) {
-          URL.revokeObjectURL(lastBlobUrl);
-        }
-
-        lastBlobUrl = URL.createObjectURL(segment.blob);
-
-        // Update video src and play
-        const video = this.elements.delayedVideo;
-        const previousSrc = video.src;
-        video.src = lastBlobUrl;
-
-        // Force load and play
-        video.load();
-        video.play().then(() => {
-          if (isFirstSegment) {
-            console.log('First delayed segment playing successfully!');
-            isFirstSegment = false;
-          }
-        }).catch(err => {
-          console.error('Delayed video play error:', err);
-        });
-      }, 2000); // Update every 2 seconds (matches segment duration)
     };
 
-    startContinuousPlayback();
-
-    // Store the cleanup function
-    this.stopDelayedPlayback = () => {
-      if (lastBlobUrl) {
-        URL.revokeObjectURL(lastBlobUrl);
-        lastBlobUrl = null;
-      }
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-      }
-      if (playbackInterval) {
-        clearInterval(playbackInterval);
-        playbackInterval = null;
-      }
-      this.elements.delayedVideo.onended = null;
-      this.elements.countdown.classList.add('hidden');
-    };
+    checkBuffer();
   }
 
   _attachEventListeners() {
@@ -170,13 +149,13 @@ class UIController {
 
     this.elements.delaySlider.addEventListener('input', (e) => {
       const delay = parseInt(e.target.value);
-      this.bufferManager.setDelay(delay);
+      this.frameBuffer.setDelay(delay);
       this.elements.delayValue.textContent = delay;
       this.elements.delayDisplay.textContent = `${delay}s`;
 
-      // Update memory estimate (2.5 Mbps bitrate / 8 = MB per second)
-      const estimatedMB = (2.5 * delay / 8).toFixed(1);
-      document.getElementById('memory-estimate').textContent = estimatedMB;
+      // Update memory estimate (30fps * delay * 4 bytes per pixel * 1280*720)
+      const estimatedMB = (30 * delay * 1280 * 720 * 4) / (1024 * 1024);
+      document.getElementById('memory-estimate').textContent = estimatedMB.toFixed(1);
     });
 
     this.elements.fullscreenBtn.addEventListener('click', () => {
@@ -191,14 +170,12 @@ class UIController {
       }
     });
 
-    // Stop camera when page unloads (browser close, navigation)
     window.addEventListener('beforeunload', () => {
       if (!this.elements.startBtn.disabled) {
         this.stop();
       }
     });
 
-    // Additional handler for mobile (more reliable)
     window.addEventListener('pagehide', () => {
       if (!this.elements.startBtn.disabled) {
         this.stop();
@@ -212,7 +189,7 @@ class UIController {
     if (!document.fullscreenElement) {
       if (elem.requestFullscreen) {
         elem.requestFullscreen();
-      } else if (elem.webkitRequestFullscreen) { // iOS Safari
+      } else if (elem.webkitRequestFullscreen) {
         elem.webkitRequestFullscreen();
       }
     } else {
