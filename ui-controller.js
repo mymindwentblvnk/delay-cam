@@ -13,7 +13,9 @@ class UIController {
       delayValue: document.getElementById('delay-value'),
       delayDisplay: document.getElementById('delay-display'),
       fullscreenBtn: document.getElementById('fullscreen-btn'),
-      status: document.getElementById('status')
+      status: document.getElementById('status'),
+      countdown: document.getElementById('countdown'),
+      countdownTimer: document.querySelector('.countdown-timer')
     };
 
     this._attachEventListeners();
@@ -59,6 +61,7 @@ class UIController {
 
     this.elements.liveVideo.srcObject = null;
     this.elements.delayedVideo.src = '';
+    this.elements.countdown.classList.add('hidden');
 
     this.elements.startBtn.disabled = false;
     this.elements.stopBtn.disabled = true;
@@ -68,15 +71,43 @@ class UIController {
   _startDelayedPlayback() {
     let lastBlobUrl = null;
     let isPlaying = false;
+    let bufferStartTime = Date.now();
+    let countdownInterval = null;
+
+    // Show countdown overlay
+    this.elements.countdown.classList.remove('hidden');
+
+    // Update countdown every 100ms
+    countdownInterval = setInterval(() => {
+      const elapsedMs = Date.now() - bufferStartTime;
+      const remainingMs = this.bufferManager.delayMs - elapsedMs;
+      const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+
+      this.elements.countdownTimer.textContent = remainingSeconds;
+
+      if (remainingSeconds === 0) {
+        clearInterval(countdownInterval);
+      }
+    }, 100);
 
     const playNextSegment = () => {
       // Check if we have enough buffered data
       if (!this.bufferManager.hasEnoughData()) {
         const delay = this.bufferManager.delayMs / 1000;
+        const elapsedMs = Date.now() - bufferStartTime;
+        const remainingSeconds = Math.max(0, Math.ceil((this.bufferManager.delayMs - elapsedMs) / 1000));
+
         this.showStatus(`Buffering for ${delay}s delay...`);
         setTimeout(playNextSegment, 500);
         return;
       }
+
+      // Hide countdown once we have enough data
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+      this.elements.countdown.classList.add('hidden');
 
       // Get chunks from the delayed timepoint
       const chunks = this.bufferManager.getDelayedChunks();
@@ -123,7 +154,11 @@ class UIController {
       if (lastBlobUrl) {
         URL.revokeObjectURL(lastBlobUrl);
       }
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+      }
       this.elements.delayedVideo.onended = null;
+      this.elements.countdown.classList.add('hidden');
     };
   }
 
