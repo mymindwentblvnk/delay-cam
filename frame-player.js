@@ -5,18 +5,22 @@ class FramePlayer {
     this.frameBuffer = frameBuffer;
     this.isPlaying = false;
     this.playInterval = null;
-    this.fps = 30;
+
+    // Match capture settings for consistency
+    this.fps = 20; // Reduced from 30fps
+    this.targetWidth = 640;
+    this.targetHeight = 360;
   }
 
   start() {
     if (this.isPlaying) return;
 
-    console.log('Frame playback started');
+    console.log('Frame playback started (memory optimized)');
     this.isPlaying = true;
 
-    // Set canvas size
-    this.canvas.width = 1280;
-    this.canvas.height = 720;
+    // Set canvas to reduced size
+    this.canvas.width = this.targetWidth;
+    this.canvas.height = this.targetHeight;
 
     this.playInterval = setInterval(() => {
       this.displayFrame();

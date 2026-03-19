@@ -1,7 +1,7 @@
 class FrameBuffer {
   constructor(delaySeconds = 10) {
     this.delayMs = delaySeconds * 1000;
-    this.fps = 30; // Capture 30 frames per second
+    this.fps = 20; // Reduced from 30 for memory optimization
     this.frameInterval = 1000 / this.fps;
     this.frames = []; // Array of {timestamp, imageData}
     this.maxFrames = Math.ceil((delaySeconds + 5) * this.fps); // Keep delay + 5s buffer
@@ -70,7 +70,7 @@ class FrameBuffer {
     return {
       frameCount: this.frames.length,
       durationSeconds: durationMs / 1000,
-      memoryMB: (this.frames.length * 1280 * 720 * 4) / (1024 * 1024) // Rough estimate
+      memoryMB: (this.frames.length * 640 * 360 * 4) / (1024 * 1024) // Updated for 640x360 resolution
     };
   }
 }

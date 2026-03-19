@@ -299,8 +299,8 @@ class UIController {
       this.elements.delayValue.textContent = delay;
       this.elements.delayDisplay.textContent = `${delay}s`;
 
-      // Update memory estimate (30fps * delay * 4 bytes per pixel * 1280*720)
-      const estimatedMB = (30 * delay * 1280 * 720 * 4) / (1024 * 1024);
+      // Update memory estimate (20fps * delay * 4 bytes per pixel * 640*360)
+      const estimatedMB = (20 * delay * 640 * 360 * 4) / (1024 * 1024);
       document.getElementById('memory-estimate').textContent = estimatedMB.toFixed(1);
 
       // Save to localStorage
