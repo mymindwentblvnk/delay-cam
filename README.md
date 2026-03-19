@@ -68,28 +68,92 @@ For the best experience on iPhone/iPad:
 ## Technical Details
 
 ### Architecture
-- **Circular buffer** stores video chunks with timestamps
-- **MediaRecorder API** captures video at 2.5 Mbps
-- **Memory-efficient** - Only keeps configured delay duration
-- **Automatic cleanup** - Removes old chunks continuously
+- **Canvas-based frame capture** - Captures video frames at 30fps using HTML5 Canvas
+- **Frame buffer** - Stores frames in memory with timestamps
+- **Memory-efficient** - Only keeps frames for configured delay duration
+- **Automatic cleanup** - Removes old frames continuously
+- **No video encoding** - Direct frame-to-canvas display (bypasses iOS codec issues)
 
 ### Browser Support
 - **iOS Safari 14+** (primary target)
 - **Chrome/Edge** (desktop and Android)
 - **Firefox** (desktop and Android)
 
-### Memory Usage
-- 5 seconds: ~1.6 MB
-- 10 seconds: ~3.1 MB (default)
-- 15 seconds: ~4.7 MB
-- 20 seconds: ~6.3 MB
-- 30 seconds: ~9.4 MB
+### Memory Usage (30fps frame capture)
+- 5 seconds: ~42 MB
+- 10 seconds: ~84 MB (default)
+- 15 seconds: ~126 MB
+- 20 seconds: ~168 MB
+- 30 seconds: ~252 MB
+
+*All memory is temporary RAM - deleted when you stop the camera*
 
 ### Privacy & Security
-- **No uploads** - Everything processed locally
-- **No storage** - Video discarded when stopped
-- **HTTPS required** - Secure camera access
-- **Auto-stop** - Camera shuts down when tab hidden or browser closed
+
+**100% Privacy-First Design - No Video Recording or Storage**
+
+DelayCam is built with complete privacy in mind. Your video is **never saved, never uploaded, and never leaves your device**.
+
+#### What Happens to Your Video?
+
+**Zero Permanent Storage:**
+- ✅ **All processing in browser memory (RAM)** - Video frames exist only temporarily in memory
+- ✅ **No files written to disk** - Nothing saved to your device storage
+- ✅ **No cloud uploads** - Zero network communication for video data
+- ✅ **No server backend** - Pure client-side web application
+- ✅ **Immediate deletion** - All video data deleted when you press Stop
+- ✅ **Automatic cleanup** - Memory released when you close the app
+
+**How It Works:**
+1. Camera captures live frames → stored in JavaScript array in RAM
+2. Delayed frames displayed on canvas → read from RAM
+3. Press Stop → all data immediately deleted from memory
+4. Close browser → all data permanently gone, cannot be recovered
+
+#### Network Activity
+
+**Zero Video Uploads - Verified:**
+- No `fetch()`, `XMLHttpRequest`, or AJAX calls for video data
+- No API endpoints or server communication
+- Only network activity: Initial page load (HTML/CSS/JS files)
+- Works completely offline after initial load
+
+**You can verify this yourself:**
+1. Open browser DevTools (F12) → Network tab
+2. Start camera and use the app
+3. You'll see: **Zero video uploads** (only initial page assets)
+
+#### What IS Stored
+
+**Only tiny user preferences in localStorage:**
+- Delay setting (e.g., "10") - ~10 bytes
+- Camera preference (e.g., "environment") - ~15 bytes
+- **Total:** ~50 bytes of plain text
+- **No video, no images, no personal data**
+
+#### Security Features
+
+- ✅ **HTTPS required** - Secure camera access (browsers enforce this)
+- ✅ **Camera permission prompt** - Explicit user consent required
+- ✅ **Auto-stop on tab switch** - Camera turns off when you leave the tab
+- ✅ **Auto-stop on close** - Camera turns off when closing browser
+- ✅ **No microphone access** - Audio disabled (`audio: false`)
+- ✅ **Open source** - All code visible on GitHub for inspection
+
+#### Privacy Summary
+
+| Question | Answer |
+|----------|--------|
+| Is video recorded? | No - only displayed in real-time |
+| Is video saved to disk? | No - only exists in temporary RAM |
+| Is video uploaded anywhere? | No - zero network uploads |
+| Can I use it offline? | Yes - works offline after initial load |
+| What data leaves my device? | None - 100% local processing |
+| Can the video be recovered? | No - permanently deleted when stopped |
+
+**Perfect for sensitive training environments** where privacy is critical - sports training, physical therapy, dance practice, etc.
+
+**Trust but verify:** The entire source code is available on GitHub. You can inspect every line to confirm there are no hidden uploads or storage.
 
 ## Use Cases
 
@@ -107,30 +171,38 @@ delay-cam/
 ├── index.html              # Main app structure
 ├── styles.css              # Mobile-first styling
 ├── app.js                  # App orchestration
-├── camera-handler.js       # Camera access & recording
-├── buffer-manager.js       # Circular buffer logic
-├── ui-controller.js        # UI interactions
+├── frame-buffer.js         # Frame buffer with timestamps
+├── frame-capture.js        # Canvas-based frame capture
+├── frame-player.js         # Delayed frame playback
+├── ui-controller.js        # UI interactions & camera control
 ├── manifest.json           # PWA configuration
+├── update-timestamp.sh     # Deployment timestamp updater
 └── .github/workflows/
-    └── deploy.yml          # Auto-deployment
+    └── deploy.yml          # Auto-deployment with timestamp
 ```
 
 ### Key Components
 
-**VideoBufferManager** - Manages circular buffer with configurable delay
-- `addChunk(blob)` - Adds video chunk with timestamp
-- `getPlayableChunks()` - Returns chunks for current delay
+**FrameBuffer** - Manages frame storage with configurable delay
+- `addFrame(imageData)` - Stores captured frame with timestamp
+- `getDelayedFrame()` - Returns frame from X seconds ago
 - `setDelay(seconds)` - Updates delay duration
-- `clear()` - Removes all chunks
+- `clear()` - Removes all frames from memory
 
-**CameraHandler** - Handles camera access and recording
-- `initialize()` - Requests camera permission
-- `startRecording()` - Begins MediaRecorder capture
-- `stopRecording()` - Stops camera and cleans up
+**FrameCapture** - Captures frames from live video
+- `start()` - Begins capturing frames at 30fps to canvas
+- `captureFrame()` - Draws video frame to canvas and extracts ImageData
+- `stop()` - Stops frame capture
 
-**UIController** - Manages UI state and video playback
-- `start()` - Initializes camera and starts recording
-- `stop()` - Stops everything and cleans up
+**FramePlayer** - Displays delayed frames
+- `start()` - Begins displaying delayed frames at 30fps
+- `displayFrame()` - Renders delayed frame from buffer to canvas
+- `stop()` - Stops playback
+
+**UIController** - Manages UI state and camera control
+- `start()` - Initializes camera and starts frame capture/playback
+- `stop()` - Stops everything and cleans up memory
+- `flipCamera()` - Switches between front/rear cameras
 - `showStatus(message, type)` - Displays status messages
 
 ## Troubleshooting
