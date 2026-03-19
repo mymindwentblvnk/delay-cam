@@ -7,10 +7,10 @@ class CameraHandler {
 
   async initialize() {
     try {
-      // Request camera with front-facing for self-review
+      // Request rear camera for recording others
       const constraints = {
         video: {
-          facingMode: 'user',
+          facingMode: 'environment',
           width: { ideal: 1280 },
           height: { ideal: 720 }
         },
