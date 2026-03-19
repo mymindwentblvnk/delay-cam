@@ -13,7 +13,6 @@ class UIController {
       delaySlider: document.getElementById('delay-slider'),
       delayValue: document.getElementById('delay-value'),
       delayDisplay: document.getElementById('delay-display'),
-      fullscreenBtn: document.getElementById('fullscreen-btn'),
       infoBtn: document.getElementById('info-btn'),
       status: document.getElementById('status'),
       countdown: document.getElementById('countdown'),
@@ -308,10 +307,6 @@ class UIController {
       this._saveDelay(delay);
     });
 
-    this.elements.fullscreenBtn.addEventListener('click', () => {
-      this._toggleFullscreen();
-    });
-
     this.elements.infoBtn.addEventListener('click', (e) => {
       e.preventDefault();
       console.log('Info button clicked');
@@ -349,22 +344,6 @@ class UIController {
         this.stop();
       }
     });
-  }
-
-  _toggleFullscreen() {
-    const elem = document.documentElement;
-
-    if (!document.fullscreenElement) {
-      if (elem.requestFullscreen) {
-        elem.requestFullscreen();
-      } else if (elem.webkitRequestFullscreen) {
-        elem.webkitRequestFullscreen();
-      }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-    }
   }
 
   showStatus(message, type = 'info') {
