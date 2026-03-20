@@ -53,6 +53,13 @@ video, canvas {
   object-fit: cover;
 }
 
+/* Fix zoomed/cropped appearance on portrait mode */
+@media (orientation: portrait) {
+  video, canvas {
+    object-fit: contain;
+  }
+}
+
 .label {
   position: absolute;
   top: 10px;
